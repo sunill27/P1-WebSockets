@@ -57,7 +57,7 @@ class Todo {
         });
         return;
       }
-      const todo = await todoModel.find();
+      const todo = await todoModel.find({ status: Status.PENDING });
       socket.emit("todo_updated", {
         status: "success",
         data: todo,
