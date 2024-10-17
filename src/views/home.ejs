@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ToDo List</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
   </head>
   <body>
     <div
@@ -13,69 +14,104 @@
       <div class="px-4 py-2">
         <h1 class="text-gray-800 font-bold text-2xl uppercase">To-Do List</h1>
       </div>
-      <form class="w-full max-w-sm mx-auto px-4 py-2">
+      <form
+        class="w-full max-w-sm mx-auto px-4 py-2"
+        onsubmit="addTodo(event); return false"
+      >
         <div class="flex items-center border-b-2 border-teal-500 py-2">
           <input
+            id="newTask"
             class="appearance-none bg-transparent border-none w-full text-gray-700 mr-3 py-1 px-2 leading-tight focus:outline-none"
             type="text"
             placeholder="Add a task"
           />
           <button
             class="flex-shrink-0 bg-teal-500 hover:bg-teal-700 border-teal-500 hover:border-teal-700 text-sm border-4 text-white py-1 px-2 rounded"
-            type="button"
+            type="submit"
           >
             Add
           </button>
         </div>
       </form>
-      <ul class="divide-y divide-gray-200 px-4">
-        <li class="py-4">
-          <div class="flex items-center">
-            <input
-              id="todo1"
-              name="todo1"
-              type="checkbox"
-              class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-            />
-            <label for="todo1" class="ml-3 block text-gray-900">
-              <span class="text-lg font-medium">Finish project proposal</span>
-              <span class="text-sm font-light text-gray-500"
-                >Due on 4/1/23</span
-              >
-            </label>
-          </div>
-        </li>
-        <li class="py-4">
-          <div class="flex items-center">
-            <input
-              id="todo2"
-              name="todo2"
-              type="checkbox"
-              class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-            />
-            <label for="todo2" class="ml-3 block text-gray-900">
-              <span class="text-lg font-medium">Buy groceries</span>
-              <span class="text-sm font-light text-gray-500"
-                >Bananas, milk, bread</span
-              >
-            </label>
-          </div>
-        </li>
-        <li class="py-4">
-          <div class="flex items-center">
-            <input
-              id="todo3"
-              name="todo3"
-              type="checkbox"
-              class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
-            />
-            <label for="todo3" class="ml-3 block text-gray-900">
-              <span class="text-lg font-medium">Go for a run</span>
-              <span class="text-sm font-light text-gray-500">3 miles</span>
-            </label>
-          </div>
-        </li>
-      </ul>
+      <ul id="todoList" class="divide-y divide-gray-200 px-4"></ul>
     </div>
+
+    <script>
+      const socket = io();
+
+      // Emit fetchToDo event when the client connects
+      socket.on("connect", () => {
+        socket.emit("fetchToDo");
+      });
+
+      socket.emit("fetchToDo");
+
+      // Listen for the todo_updated event
+      socket.on("todo_updated", (data) => {
+        console.log(data);
+        if (data.status === "success") {
+          updateTodoList(data.data);
+        } else {
+          console.log("Error Occurred!");
+        }
+      });
+
+      function updateTodoList(todos) {
+        const todoList = document.getElementById("todoList");
+        todoList.innerHTML = "";
+        todos.forEach((todo) => {
+          const listItem = `
+      <li class="py-4 flex items-center justify-between" data-id="${todo._id}">
+        <div class="flex items-center">
+          <input
+            id="todo_${todo._id}"
+            name="todo_${todo._id}"
+            type="checkbox"
+            class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+            onchange= "toggleStatus('${todo._id}')"
+          />
+          <label for="todo_${todo._id}" class="ml-3 block text-gray-900">
+            <span class="text-lg font-medium">${todo.task}</span>
+            <span class="text-sm font-light text-gray-500">Due on ${todo.deadline}</span>
+          </label>
+        </div>
+        <button id="btn"  onclick= "deleteTodo('${todo._id}')">
+          <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M0 0h24v24H0z" fill="none"/><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+          </button>
+      </li>`;
+          todoList.insertAdjacentHTML("beforeend", listItem);
+        });
+      }
+
+      //Add ToDo function:
+      function addTodo(e) {
+        e.preventDefault();
+        const taskValue = document.getElementById("newTask");
+        const task = taskValue.value;
+        socket.emit("addToDo", {
+          task: task,
+          deadline: new Date().toLocaleDateString(),
+          status: "pending",
+        });
+        taskValue.value = "";
+      }
+
+      //Delete ToDo function:
+      function deleteTodo(todoId) {
+        socket.emit("deleteToDo", { id: todoId });
+        const todoElement = document.querySelector(`[data-id="${todoId}"]`);
+        if (todoElement) {
+          todoElement.remove();
+        }
+      }
+
+      //ToggleStatus Change function:
+      function toggleStatus(todoId) {
+        socket.emit("updateToDoStatus", {
+          id: todoId,
+          status: "completed",
+        });
+      }
+    </script>
   </body>
 </html>

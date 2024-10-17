@@ -12,10 +12,13 @@ class Todo {
       //To receive data while performing add operation:
       socket.on("addToDo", (data) => this.handleAddToDo(socket, data));
 
+      //To receive data while performing fetch operation:
+      socket.on("fetchToDo", () => this.handleFetchToDo(socket));
+
       //To receive data while performing delete operation:
       socket.on("deleteToDo", (data) => this.handleDeleteToDo(socket, data));
 
-      //To receive data while performing delete operation:
+      //To receive data while performing update operation:
       socket.on("updateToDoStatus", (data) =>
         this.handleUpdateToDo(socket, data)
       );
@@ -32,6 +35,22 @@ class Todo {
         status,
       });
 
+      const todo = await todoModel.find({ status: Status.PENDING });
+      socket.emit("todo_updated", {
+        status: "success",
+        data: todo,
+      });
+    } catch (error) {
+      socket.emit("todo_response", {
+        status: "error",
+        error,
+      });
+    }
+  }
+
+  //Fetch To Do:
+  private async handleFetchToDo(socket: Socket) {
+    try {
       const todo = await todoModel.find({ status: Status.PENDING });
       socket.emit("todo_updated", {
         status: "success",
